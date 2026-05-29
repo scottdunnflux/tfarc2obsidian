@@ -54,7 +54,7 @@ For more details, consult the [Tap Forms documentation](https://www.tapforms.com
 
 Download the Python script to your Mac. The simplest way:
 
-1. **Click this link to download:** [tfarc2obsidian.py](https://raw.githubusercontent.com/scottdunn/tfarc2obsidian/main/tfarc2obsidian.py)
+1. **Click this link to download:** [tfarc2obsidian.py](https://raw.githubusercontent.com/scottdunnflux/tfarc2obsidian/main/tfarc2obsidian.py)
 2. Save it somewhere easy to find — your **Desktop** or **Downloads** folder works fine
 
 > If the link opens as text in your browser instead of downloading, right-click (or Control-click) the link and choose **"Download Linked File"** or **"Save Link As..."**

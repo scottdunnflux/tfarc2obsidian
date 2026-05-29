@@ -484,15 +484,11 @@ def build_template(form, fields):
         slug = _dedupe(slug, seen_slugs)
         if ftype == "check_mark":
             lines.append(f"{slug}: false")
-        elif ftype == "number":
-            lines.append(f"{slug}: ")
-        elif ftype == "date":
-            lines.append(f"{slug}: ")
         else:
             lines.append(f"{slug}: ")
 
-    lines.append(f"date_created: {datetime.date.today().isoformat()}")
-    lines.append(f"date_modified: {datetime.date.today().isoformat()}")
+    lines.append("date_created: \"{{date:YYYY-MM-DD}}\"")
+    lines.append("date_modified: \"{{date:YYYY-MM-DD}}\"")
     lines.append("---")
 
     body_parts = []
@@ -510,11 +506,14 @@ def build_template(form, fields):
     return "\n".join(lines)
 
 
-def write_template(form_name, form, fields, output_dir):
-    content = build_template(form, fields)
-    path = output_dir / form_name / "_Template.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+def write_templates(schema, output_dir):
+    templates_dir = output_dir / "Templates"
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    for form_id, form in schema["forms"].items():
+        fields = schema["fields_by_form"].get(form_id, [])
+        content = build_template(form, fields)
+        path = templates_dir / f"{form['name']}.md"
+        path.write_text(content, encoding="utf-8")
 
 
 def write_index_note(form_name, record_titles, output_dir):
@@ -546,6 +545,31 @@ def write_vault_readme(output_dir, schema):
         lines.append(f"| [[{name}/_Index\\|{name}]] | {count} |")
     lines.append("")
 
+    lines.append("## Creating new records")
+    lines.append("")
+    lines.append(
+        "This vault includes templates for each form in the `Templates/` folder."
+    )
+    lines.append("")
+    lines.append("To use them with Obsidian's built-in Templates plugin:")
+    lines.append("")
+    lines.append(
+        "1. Go to **Settings → Core Plugins** and enable **Templates**"
+    )
+    lines.append(
+        "2. Go to **Settings → Templates** and set "
+        '"Template folder location" to `Templates`'
+    )
+    lines.append(
+        "3. Create a new note in the form folder you want "
+        "(e.g., `Home Inventory/`)"
+    )
+    lines.append(
+        "4. Press **Cmd-P**, type **Insert template**, "
+        "and select the matching form template"
+    )
+    lines.append("")
+
     path = output_dir / "README.md"
     path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -574,9 +598,7 @@ def write_vault(output_dir, markdown_files, extraction_plan, zf, schema, dry_run
     if not dry_run:
         for form_name, titles in form_record_titles.items():
             write_index_note(form_name, titles, output_dir)
-        for form_id, form in schema["forms"].items():
-            fields = schema["fields_by_form"].get(form_id, [])
-            write_template(form["name"], form, fields, output_dir)
+        write_templates(schema, output_dir)
 
     return form_record_titles
 

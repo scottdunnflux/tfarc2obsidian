@@ -494,7 +494,7 @@ def build_template(form, fields):
     body_parts = []
     if has_photo_fields:
         body_parts.append("")
-        body_parts.append("<!-- Attach images: drag into _attachments folder, then embed with ![[filename.jpg]] -->")
+        body_parts.append("<!-- To add an image: drag it into the _attachments folder, then drag it onto this note (or type ![[filename.jpg]]) -->")
 
     for field in note_fields:
         body_parts.append("")

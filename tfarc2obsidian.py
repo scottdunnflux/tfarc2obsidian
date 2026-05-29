@@ -460,6 +460,63 @@ def print_progress(message, file=None):
     print(message, file=file or sys.stderr, flush=True)
 
 
+def build_template(form, fields):
+    lines = ["---"]
+    lines.append(f"form: {yaml_quote(form['name'])}")
+
+    tag = re.sub(r"[^a-z0-9-]", "-", form["name"].lower())
+    tag = re.sub(r"-+", "-", tag).strip("-")
+    lines.append("tags:")
+    lines.append(f"  - {tag}")
+
+    seen_slugs = set()
+    note_fields = []
+    has_photo_fields = False
+    for field in fields:
+        ftype = field.get("fieldType", "")
+        if ftype == "note":
+            note_fields.append(field)
+            continue
+        if ftype == "photo":
+            has_photo_fields = True
+            continue
+        slug = slugify_field_name(field["name"])
+        slug = _dedupe(slug, seen_slugs)
+        if ftype == "check_mark":
+            lines.append(f"{slug}: false")
+        elif ftype == "number":
+            lines.append(f"{slug}: ")
+        elif ftype == "date":
+            lines.append(f"{slug}: ")
+        else:
+            lines.append(f"{slug}: ")
+
+    lines.append(f"date_created: {datetime.date.today().isoformat()}")
+    lines.append(f"date_modified: {datetime.date.today().isoformat()}")
+    lines.append("---")
+
+    body_parts = []
+    if has_photo_fields:
+        body_parts.append("")
+        body_parts.append("<!-- Attach images: drag into _attachments folder, then embed with ![[filename.jpg]] -->")
+
+    for field in note_fields:
+        body_parts.append("")
+        body_parts.append(f"## {field['name']}")
+        body_parts.append("")
+
+    lines.extend(body_parts)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_template(form_name, form, fields, output_dir):
+    content = build_template(form, fields)
+    path = output_dir / form_name / "_Template.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
 def write_index_note(form_name, record_titles, output_dir):
     titles_sorted = sorted(record_titles, key=lambda t: t.lower())
     lines = [f"# {form_name}", "", f"*{len(titles_sorted)} records*", ""]
@@ -493,7 +550,7 @@ def write_vault_readme(output_dir, schema):
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_vault(output_dir, markdown_files, extraction_plan, zf, dry_run=False):
+def write_vault(output_dir, markdown_files, extraction_plan, zf, schema, dry_run=False):
     if not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -513,10 +570,13 @@ def write_vault(output_dir, markdown_files, extraction_plan, zf, dry_run=False):
     print_progress(f"  Extracting {len(extraction_plan)} attachments...")
     extract_attachments(zf, extraction_plan, output_dir, dry_run=dry_run)
 
-    print_progress("  Writing index notes...")
+    print_progress("  Writing index notes and templates...")
     if not dry_run:
         for form_name, titles in form_record_titles.items():
             write_index_note(form_name, titles, output_dir)
+        for form_id, form in schema["forms"].items():
+            fields = schema["fields_by_form"].get(form_id, [])
+            write_template(form["name"], form, fields, output_dir)
 
     return form_record_titles
 
@@ -582,21 +642,23 @@ def main():
 
     print_progress(f"\nWriting vault to: {output_dir}")
     form_record_titles = write_vault(
-        output_dir, markdown_files, extraction_plan, zf, dry_run=False
+        output_dir, markdown_files, extraction_plan, zf, schema, dry_run=False
     )
 
     write_vault_readme(output_dir, schema)
 
     zf.close()
 
+    template_count = len(schema["forms"])
     total_files = len(markdown_files) + len(extraction_plan)
     index_count = len(form_record_titles)
     print_progress(
-        f"\nDone! Created {total_files + index_count + 1} files in {output_dir}"
+        f"\nDone! Created {total_files + index_count + template_count + 1} files in {output_dir}"
     )
     print_progress(f"  {len(markdown_files)} records")
     print_progress(f"  {len(extraction_plan)} attachments")
     print_progress(f"  {index_count} index notes")
+    print_progress(f"  {template_count} templates")
     print_progress(f"  1 README")
 
 
